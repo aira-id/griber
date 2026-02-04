@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Griber Realtime STT - OpenAI Compatible Client</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎙️</text></svg>">
+</head>
+
+<body>
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="container">
+        <header>
+            <h1>Griber Realtime</h1>
+            <p>OpenAI Compatible Realtime Speech-to-Text</p>
+        </header>
+
+        <section class="glass-panel">
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="ws-url">WebSocket URL</label>
+                    <input type="text" id="ws-url" value="ws://localhost:8080/v1/realtime">
+                </div>
+                <div class="form-group">
+                    <label for="api-key">API Key (if required)</label>
+                    <input type="password" id="api-key" placeholder="Enter API Key">
+                </div>
+                <div class="form-group">
+                    <label for="model-select">ASR Model</label>
+                    <select id="model-select">
+                        <option value="sherpa-onnx-streaming-zipformer2-id" selected>Zipformer2 Indonesian</option>
+                        <option value="sherpa-onnx-streaming-zipformer-en-2023-06-26">Zipformer English (2023-06-26)
+                        </option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="language-select">Language</label>
+                    <select id="language-select">
+                        <option value="id" selected>Indonesian (id)</option>
+                        <option value="en">English (en)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="connect-btn" class="btn-primary">
+                    <span id="connect-icon">⚡</span>
+                    <span id="connect-text">Connect</span>
+                </button>
+                <button id="mic-btn" class="btn-success" disabled>
+                    <span id="mic-icon">🎤</span>
+                    <span id="mic-text">Start Microphone</span>
+                </button>
+                <button id="disconnect-btn" class="btn-danger" disabled>
+                    <span>🛑</span>
+                    <span>Disconnect</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="glass-panel transcription-container">
+            <div class="status-bar">
+                <span>
+                    <span id="status-dot" class="status-dot status-disconnected"></span>
+                    <span id="status-text">Disconnected</span>
+                </span>
+                <span id="session-info">No Active Session</span>
+            </div>
+
+            <div id="transcription-log" class="transcription-log">
+                <div class="log-item status">
+                    <span class="timestamp">System</span>
+                    Ready to connect.
+                </div>
+            </div>
+
+            <div id="current-transcription">
+                <span class="text-secondary">Waiting for speech...</span>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,5 @@
+.claude
+griber
+models/
+pkg/whisper
+config.yaml

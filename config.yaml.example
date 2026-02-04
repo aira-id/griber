@@ -1,0 +1,36 @@
+server:
+  port: "8080"
+  allowed_origins: []
+auth:
+  api_keys: []
+audio:
+  max_audio_buffer_size: 15728640 # 15MB
+  transcription_timeout: "30s"
+rate:
+  max_connections_per_ip: 10
+  requests_per_second: 100
+  burst_size: 50
+  cleanup_interval: "1m"
+
+asr:
+  provider: "cpu" # currently does not support 'gpu'
+  num_threads: 4
+  models_dir: "./models"
+  default_model: "sherpa-onnx-streaming-zipformer2-id"
+  models:
+    sherpa-onnx-streaming-zipformer2-id:
+      provider: "sherpa-onnx"
+      encoder: "encoder-iter-100000-avg-15-chunk-32-left-256.onnx"
+      decoder: "decoder-iter-100000-avg-15-chunk-32-left-256.onnx"
+      joiner: "joiner-iter-100000-avg-15-chunk-32-left-256.onnx"
+      tokens: "tokens.txt"
+      languages:
+        - "id"
+    sherpa-onnx-streaming-zipformer-en-2023-06-26:
+      provider: "sherpa-onnx"
+      encoder: "encoder-epoch-99-avg-1-chunk-16-left-128.onnx"
+      decoder: "decoder-epoch-99-avg-1-chunk-16-left-128.onnx"
+      joiner: "joiner-epoch-99-avg-1-chunk-16-left-128.onnx"
+      tokens: "tokens.txt"
+      languages:
+        - "en"
