@@ -65,6 +65,7 @@ const (
 type ModelConfig struct {
 	Provider   string         `yaml:"provider"`   // Provider type (e.g., "sherpa-onnx")
 	Recognizer RecognizerType `yaml:"recognizer"` // Recognizer type: "online" (streaming) or "offline" (batch)
+	ModelType  string         `yaml:"model_type"` // Model type (e.g., "zipformer2", "whisper", etc.)
 	Encoder    string         `yaml:"encoder"`    // Path to encoder model file
 	Decoder    string         `yaml:"decoder"`    // Path to decoder model file
 	Joiner     string         `yaml:"joiner"`     // Path to joiner model file

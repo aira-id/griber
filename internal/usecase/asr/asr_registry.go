@@ -251,6 +251,7 @@ func createSherpaProvider(globalConfig *config.ASRConfig, modelName string, mode
 		NumThreads: globalConfig.NumThreads,
 		ModelsDir:  globalConfig.ModelsDir,
 		ModelName:  modelName,
+		ModelType:  modelConfig.ModelType,
 		Recognizer: recognizerType,
 		Encoder:    modelConfig.Encoder,
 		Decoder:    modelConfig.Decoder,

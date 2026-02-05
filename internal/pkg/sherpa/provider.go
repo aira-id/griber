@@ -25,6 +25,7 @@ type Config struct {
 	NumThreads int            // Number of threads for inference
 	ModelsDir  string         // Base directory for models
 	ModelName  string         // Model directory name
+	ModelType  string         // Model type: "zipformer2", "whisper", etc.
 	Recognizer RecognizerType // Type of recognizer: "online" or "offline"
 	Encoder    string         // Encoder file name
 	Decoder    string         // Decoder file name
@@ -61,7 +62,7 @@ func New(config *Config) (*Provider, error) {
 	if config.Decoder == "" {
 		return nil, fmt.Errorf("decoder is required in sherpa config")
 	}
-	if config.Joiner == "" {
+	if config.Joiner == "" && config.ModelType != "whisper" {
 		return nil, fmt.Errorf("joiner is required in sherpa config")
 	}
 	if config.Tokens == "" {
@@ -148,6 +149,8 @@ func (p *Provider) initializeOnlineRecognizer() error {
 	recognizerConfig.ModelConfig.NumThreads = p.config.NumThreads
 	recognizerConfig.ModelConfig.Provider = p.config.Provider
 	recognizerConfig.ModelConfig.Debug = 0
+
+	// Set decoding method based on model type if needed
 	recognizerConfig.DecodingMethod = "greedy_search"
 	recognizerConfig.MaxActivePaths = 4
 
@@ -183,24 +186,37 @@ func (p *Provider) initializeOfflineRecognizer() error {
 	recognizerConfig.FeatConfig.SampleRate = 16000
 	recognizerConfig.FeatConfig.FeatureDim = 80
 
-	// Build model paths from config
-	modelDir := filepath.Join(p.config.ModelsDir, p.config.ModelName)
-	recognizerConfig.ModelConfig.Transducer.Encoder = filepath.Join(modelDir, p.config.Encoder)
-	recognizerConfig.ModelConfig.Transducer.Decoder = filepath.Join(modelDir, p.config.Decoder)
-	recognizerConfig.ModelConfig.Transducer.Joiner = filepath.Join(modelDir, p.config.Joiner)
-	recognizerConfig.ModelConfig.Tokens = filepath.Join(modelDir, p.config.Tokens)
-
 	recognizerConfig.ModelConfig.NumThreads = p.config.NumThreads
 	recognizerConfig.ModelConfig.Provider = p.config.Provider
 	recognizerConfig.ModelConfig.Debug = 0
-	recognizerConfig.DecodingMethod = "greedy_search"
-	recognizerConfig.MaxActivePaths = 4
 
-	log.Printf("Offline model paths: encoder=%s, decoder=%s, joiner=%s, tokens=%s",
-		recognizerConfig.ModelConfig.Transducer.Encoder,
-		recognizerConfig.ModelConfig.Transducer.Decoder,
-		recognizerConfig.ModelConfig.Transducer.Joiner,
-		recognizerConfig.ModelConfig.Tokens)
+	// Build model paths from config
+	modelDir := filepath.Join(p.config.ModelsDir, p.config.ModelName)
+
+	// Configure model paths based on type
+	if p.config.ModelType == "whisper" {
+		log.Printf("Configuring Whisper offline model path...")
+		recognizerConfig.ModelConfig.Whisper.Encoder = filepath.Join(modelDir, p.config.Encoder)
+		recognizerConfig.ModelConfig.Whisper.Decoder = filepath.Join(modelDir, p.config.Decoder)
+		recognizerConfig.ModelConfig.Tokens = filepath.Join(modelDir, p.config.Tokens)
+
+		log.Printf("Offline model paths (Whisper): encoder=%s, decoder=%s, tokens=%s",
+			recognizerConfig.ModelConfig.Whisper.Encoder,
+			recognizerConfig.ModelConfig.Whisper.Decoder,
+			recognizerConfig.ModelConfig.Tokens)
+	} else {
+		// Default to Transducer
+		recognizerConfig.ModelConfig.Transducer.Encoder = filepath.Join(modelDir, p.config.Encoder)
+		recognizerConfig.ModelConfig.Transducer.Decoder = filepath.Join(modelDir, p.config.Decoder)
+		recognizerConfig.ModelConfig.Transducer.Joiner = filepath.Join(modelDir, p.config.Joiner)
+		recognizerConfig.ModelConfig.Tokens = filepath.Join(modelDir, p.config.Tokens)
+
+		log.Printf("Offline model paths (Transducer): encoder=%s, decoder=%s, joiner=%s, tokens=%s",
+			recognizerConfig.ModelConfig.Transducer.Encoder,
+			recognizerConfig.ModelConfig.Transducer.Decoder,
+			recognizerConfig.ModelConfig.Transducer.Joiner,
+			recognizerConfig.ModelConfig.Tokens)
+	}
 
 	p.offlineRecognizer = sherpa.NewOfflineRecognizer(recognizerConfig)
 	if p.offlineRecognizer == nil {
