@@ -3,15 +3,16 @@
 Griber is an open-source speech-to-text API compatible with OpenAI's Realtime API, built using Golang and WebSockets. It supports multiple ASR providers, including `sherpa-onnx` and `mock` for testing.
 
 ## Features
-- **OpenAI Compatible**: Implements the OpenAI Realtime API protocol.
-- **Modular ASR**: Support for different ASR backends (currently we only support sherpa-onnx, other providers will be coming soon).
-- **Configurable**: Full control via `config.yaml` and environment variables.
+- **OpenAI Compatible**: Implements the OpenAI Realtime API (WebSocket) and Transcription API (HTTP).
+- **Audio Decoding**: Automatic conversion of various audio formats (MP3, WAV, etc.) using `ffmpeg`.
+- **Advanced ASR Features**: Support for word-level timestamps, temperature-controlled inference, and verbose JSON output.
 
 ## Getting Started
 
 ### Prerequisites
 - Go 1.21+
-- ONNX Runtime libraries (for Sherpa-onnx)
+- ONNX Runtime libraries
+- **ffmpeg** (required for HTTP API audio decoding)
 
 ### Installation
 1. Clone the repository:
@@ -34,17 +35,23 @@ Download the streaming Zipformer models from Hugging Face:
 
 - **Indonesian (ID)**: [sherpa-onnx-streaming-zipformer2-id](https://huggingface.co/spacewave/sherpa-onnx-streaming-zipformer2-id)
 - **English (EN)**: [sherpa-onnx-streaming-zipformer-en-2023-06-26](https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26)
+- **Whisper Small**: [sherpa-onnx-whisper-small](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2)
 
 ```bash
-
 # Create models directory if it doesn't exist
 mkdir -p models
+cd models
 
-# Download Indonesian model
+# Download Indonesian model (streaming)
 git clone https://huggingface.co/spacewave/sherpa-onnx-streaming-zipformer2-id
 
-# Download English model
+# Download English model (streaming)
 git clone https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26
+
+# Download Whisper small model (non-streaming)
+curl -SL -O https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2
+tar xvf sherpa-onnx-whisper-small.tar.bz2
+rm sherpa-onnx-whisper-small.tar.bz2
 ```
 
 ### 2. Directory Structure
@@ -81,14 +88,31 @@ Griber uses `config.yaml` for main configuration. Environment variables can also
 
 ## API Usage
 
-### WebSocket Endpoint
+### WebSocket API (Real-time)
 `ws://localhost:8080/v1/realtime`
 
-### Protocol Documentation
-This server implements the OpenAI Realtime API protocol for speech-to-text.
-For detailed documentation on client events, server events, and message formats, please refer to the official **[OpenAI Realtime API Documentation](https://platform.openai.com/docs/guides/realtime)**.
+This endpoint implements the OpenAI Realtime API protocol for streaming speech-to-text.
+- **Constraint**: Only streaming models can be used with this endpoint.
 
-Use standard OpenAI-compatible credentials and SDKs (where applicable) or raw WebSockets to interact with this endpoint.
+### HTTP API (Transcription)
+`POST http://localhost:8080/v1/audio/transcriptions`
+
+OpenAI-compatible transcription endpoint for batch processing.
+
+**Request Parameters:**
+- `file` (required): The audio file to transcribe.
+- `model` (required): Model name (e.g., `sherpa-onnx-whisper-small`).
+- `language`: ISO language code (e.g., `en`, `id`).
+- `temperature`: Sampling temperature (0.0 to 1.0).
+- `response_format`: `json` or `verbose_json` (for word-level timestamps).
+
+**Example Usage:**
+```bash
+curl http://localhost:8080/v1/audio/transcriptions \
+  -F "file=@audio.mp3" \
+  -F "model=sherpa-onnx-whisper-small" \
+  -F "response_format=verbose_json"
+```
 
 ## Client Example
 
@@ -108,10 +132,9 @@ A simple web client is provided in the `client/` directory to demonstrate real-t
 
 ## Limitations
 
-### OpenAI Compatibility
-1. **Confidence Scores**: Griber currently uses `sherpa-onnx`'s `OnlineRecognizer` for real-time transcription, which does not generate confidence scores. We plan to integrate `OfflineRecognizer` in the future to support this feature.
-2. **API Protocols**: Only the WebSocket API endpoint is currently supported. Support for other protocols (e.g., HTTP REST and WebRTC) will be added in upcoming releases.
-3. **Language Support**: Language availability depends on the specific models currently configured and loaded.
+1. **API Protocols**: We currently support WebSocket (Realtime) and HTTP (Transcription). WebRTC support is planned.
+2. **Language Support**: Depends on the specific models configured in `config.yaml`.
+3. **Hardware Acceleration**: Currently optimized for CPU; GPU support is in the roadmap.
 
 ## Contributing
 
