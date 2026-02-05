@@ -95,6 +95,19 @@ func (u *SessionUsecase) GetASRRegistry() *asr.ASRModelRegistry {
 	return u.asrRegistry
 }
 
+// Close cleans up all resources used by the session usecase
+func (u *SessionUsecase) Close() {
+	// Close session manager (stops cleanup goroutine)
+	if u.sessionManager != nil {
+		u.sessionManager.Close()
+	}
+	// Close ASR registry (releases model resources)
+	if u.asrRegistry != nil {
+		u.asrRegistry.Close()
+	}
+	log.Printf("[INFO] Session usecase closed")
+}
+
 // getOrCreateVAD gets or creates a VAD provider for a session
 func (u *SessionUsecase) getOrCreateVAD(state *domain.SessionState) domain.VADProvider {
 	if state.VADProvider != nil {

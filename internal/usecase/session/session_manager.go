@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -9,17 +10,106 @@ import (
 	"github.com/google/uuid"
 )
 
+// Default session cleanup settings
+const (
+	defaultSessionTimeout  = 30 * time.Minute // Sessions inactive for 30min are cleaned up
+	defaultCleanupInterval = 5 * time.Minute  // Check for stale sessions every 5min
+)
+
 // SessionManager handles session lifecycle and state
 type SessionManager struct {
-	sessions map[string]*domain.SessionState
-	mu       sync.RWMutex
+	sessions        map[string]*domain.SessionState
+	mu              sync.RWMutex
+	sessionTimeout  time.Duration
+	cleanupInterval time.Duration
+	stopCleanup     chan struct{}
+	cleanupDone     chan struct{}
 }
 
-// NewSessionManager creates a new session manager
+// NewSessionManager creates a new session manager with automatic cleanup
 func NewSessionManager() *SessionManager {
-	return &SessionManager{
-		sessions: make(map[string]*domain.SessionState),
+	sm := &SessionManager{
+		sessions:        make(map[string]*domain.SessionState),
+		sessionTimeout:  defaultSessionTimeout,
+		cleanupInterval: defaultCleanupInterval,
+		stopCleanup:     make(chan struct{}),
+		cleanupDone:     make(chan struct{}),
 	}
+	go sm.cleanupLoop()
+	return sm
+}
+
+// NewSessionManagerWithConfig creates a session manager with custom timeout settings
+func NewSessionManagerWithConfig(sessionTimeout, cleanupInterval time.Duration) *SessionManager {
+	if sessionTimeout <= 0 {
+		sessionTimeout = defaultSessionTimeout
+	}
+	if cleanupInterval <= 0 {
+		cleanupInterval = defaultCleanupInterval
+	}
+	sm := &SessionManager{
+		sessions:        make(map[string]*domain.SessionState),
+		sessionTimeout:  sessionTimeout,
+		cleanupInterval: cleanupInterval,
+		stopCleanup:     make(chan struct{}),
+		cleanupDone:     make(chan struct{}),
+	}
+	go sm.cleanupLoop()
+	return sm
+}
+
+// cleanupLoop periodically removes stale sessions
+func (sm *SessionManager) cleanupLoop() {
+	defer close(sm.cleanupDone)
+	ticker := time.NewTicker(sm.cleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-sm.stopCleanup:
+			return
+		case <-ticker.C:
+			sm.cleanupStaleSessions()
+		}
+	}
+}
+
+// cleanupStaleSessions removes sessions that have been inactive beyond the timeout
+func (sm *SessionManager) cleanupStaleSessions() {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	now := time.Now()
+	var staleIDs []string
+
+	for id, state := range sm.sessions {
+		if now.Sub(state.LastActivity) > sm.sessionTimeout {
+			staleIDs = append(staleIDs, id)
+		}
+	}
+
+	for _, id := range staleIDs {
+		delete(sm.sessions, id)
+		log.Printf("[INFO] Cleaned up stale session: %s", id)
+	}
+
+	if len(staleIDs) > 0 {
+		log.Printf("[INFO] Session cleanup: removed %d stale sessions, %d active", len(staleIDs), len(sm.sessions))
+	}
+}
+
+// Close stops the cleanup goroutine and cleans up resources
+func (sm *SessionManager) Close() {
+	close(sm.stopCleanup)
+	<-sm.cleanupDone
+	log.Printf("[INFO] Session manager closed")
+}
+
+// GetSessionCount returns the number of active sessions
+func (sm *SessionManager) GetSessionCount() int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return len(sm.sessions)
 }
 
 // CreateSession creates a new session

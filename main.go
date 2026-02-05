@@ -87,5 +87,6 @@ func main() {
 
 	wsHandler.Close()
 	transcriptionHandler.Close()
+	sessionUsecase.Close()
 	log.Println("Server stopped")
 }
