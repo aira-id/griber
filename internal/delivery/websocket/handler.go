@@ -20,6 +20,17 @@ type Handler struct {
 	upgrader    websocket.Upgrader
 }
 
+// WebSocket buffer sizes optimized for audio streaming
+const (
+	// ReadBufferSize is sized for typical audio chunks (4-8KB at 16kHz)
+	// 32KB allows efficient handling of larger chunks without excessive syscalls
+	wsReadBufferSize = 32 * 1024
+
+	// WriteBufferSize is sized for JSON events with potential base64 audio
+	// 64KB handles serialized events without multiple flushes
+	wsWriteBufferSize = 64 * 1024
+)
+
 // NewHandler creates a new WebSocket handler
 func NewHandler(uc *session.SessionUsecase, cfg *config.Config) *Handler {
 	h := &Handler{
@@ -30,8 +41,8 @@ func NewHandler(uc *session.SessionUsecase, cfg *config.Config) *Handler {
 
 	h.upgrader = websocket.Upgrader{
 		CheckOrigin:     h.checkOrigin,
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  wsReadBufferSize,
+		WriteBufferSize: wsWriteBufferSize,
 	}
 
 	return h
