@@ -12,6 +12,7 @@ import (
 	"github.com/aira-id/griber/internal/config"
 	httpdelivery "github.com/aira-id/griber/internal/delivery/http"
 	"github.com/aira-id/griber/internal/delivery/websocket"
+	"github.com/aira-id/griber/internal/middleware"
 	"github.com/aira-id/griber/internal/usecase/session"
 )
 
@@ -44,21 +45,25 @@ func main() {
 	wsHandler := websocket.NewHandler(sessionUsecase, cfg)
 	transcriptionHandler := httpdelivery.NewTranscriptionHandler(cfg, sessionUsecase.GetASRRegistry())
 
-	// Set up routes
-	http.Handle("/v1/realtime", wsHandler)
-	http.Handle("/v1/audio/transcriptions", transcriptionHandler)
+	// Set up router and wrap with middleware
+	mux := http.NewServeMux()
+	mux.Handle("/v1/realtime", wsHandler)
+	mux.Handle("/v1/audio/transcriptions", transcriptionHandler)
 
 	// Health check endpoint
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+
+	// Apply CORS middleware
+	handler := middleware.CORSMiddleware(cfg)(mux)
 
 	// Start server in a goroutine
 	addr := ":" + cfg.Server.Port
 	server := &http.Server{
 		Addr:    addr,
-		Handler: nil, // Uses http.DefaultServeMux
+		Handler: handler,
 	}
 
 	// Graceful shutdown handling
