@@ -15,72 +15,144 @@
     <div id="toast-container" class="toast-container"></div>
 
     <div class="container">
-        <header>
-            <h1>Griber Realtime</h1>
-            <p>OpenAI Compatible Realtime Speech-to-Text</p>
-        </header>
+        <nav class="tabs">
+            <button id="tab-realtime" class="tab-btn active" data-tab="realtime">
+                <span>⚡</span> Realtime
+            </button>
+            <button id="tab-upload" class="tab-btn" data-tab="upload">
+                <span>📤</span> File Upload
+            </button>
+        </nav>
 
-        <section class="glass-panel">
-            <div class="config-grid">
-                <div class="form-group">
-                    <label for="ws-url">WebSocket URL</label>
-                    <input type="text" id="ws-url" value="ws://localhost:8080/v1/realtime">
+        <section id="realtime-section" class="tab-content active">
+            <div class="glass-panel">
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label for="ws-url">WebSocket URL</label>
+                        <input type="text" id="ws-url" value="ws://localhost:8080/v1/realtime">
+                    </div>
+                    <div class="form-group">
+                        <label for="api-key-realtime">API Key (if required)</label>
+                        <input type="password" id="api-key-realtime" class="api-key-input" placeholder="Enter API Key">
+                    </div>
+                    <div class="form-group">
+                        <label for="model-select-realtime">ASR Model</label>
+                        <select id="model-select-realtime" class="model-select">
+                            <option value="sherpa-onnx-streaming-zipformer2-id" selected>Zipformer2 Indonesian</option>
+                            <option value="sherpa-onnx-streaming-zipformer-en-2023-06-26">Zipformer English (2023-06-26)
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="language-select-realtime">Language</label>
+                        <select id="language-select-realtime" class="language-select">
+                            <option value="id" selected>Indonesian (id)</option>
+                            <option value="en">English (en)</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="api-key">API Key (if required)</label>
-                    <input type="password" id="api-key" placeholder="Enter API Key">
-                </div>
-                <div class="form-group">
-                    <label for="model-select">ASR Model</label>
-                    <select id="model-select">
-                        <option value="sherpa-onnx-streaming-zipformer2-id" selected>Zipformer2 Indonesian</option>
-                        <option value="sherpa-onnx-streaming-zipformer-en-2023-06-26">Zipformer English (2023-06-26)
-                        </option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="language-select">Language</label>
-                    <select id="language-select">
-                        <option value="id" selected>Indonesian (id)</option>
-                        <option value="en">English (en)</option>
-                    </select>
+                <div class="controls">
+                    <button id="connect-btn" class="btn-primary">
+                        <span id="connect-icon">⚡</span>
+                        <span id="connect-text">Connect</span>
+                    </button>
+                    <button id="mic-btn" class="btn-success" disabled>
+                        <span id="mic-icon">🎤</span>
+                        <span id="mic-text">Start Microphone</span>
+                    </button>
+                    <button id="disconnect-btn" class="btn-danger" disabled>
+                        <span>🛑</span>
+                        <span>Disconnect</span>
+                    </button>
                 </div>
             </div>
-            <div class="controls">
-                <button id="connect-btn" class="btn-primary">
-                    <span id="connect-icon">⚡</span>
-                    <span id="connect-text">Connect</span>
-                </button>
-                <button id="mic-btn" class="btn-success" disabled>
-                    <span id="mic-icon">🎤</span>
-                    <span id="mic-text">Start Microphone</span>
-                </button>
-                <button id="disconnect-btn" class="btn-danger" disabled>
-                    <span>🛑</span>
-                    <span>Disconnect</span>
-                </button>
-            </div>
+
+            <section class="glass-panel transcription-container">
+                <div class="status-bar">
+                    <span>
+                        <span id="status-dot" class="status-dot status-disconnected"></span>
+                        <span id="status-text">Disconnected</span>
+                    </span>
+                    <span id="session-info">No Active Session</span>
+                </div>
+
+                <div id="transcription-log" class="transcription-log">
+                    <div class="log-item status">
+                        <span class="timestamp">System</span>
+                        Ready to connect.
+                    </div>
+                </div>
+
+                <div id="current-transcription">
+                    <span class="text-secondary">Waiting for speech...</span>
+                </div>
+            </section>
         </section>
 
-        <section class="glass-panel transcription-container">
-            <div class="status-bar">
-                <span>
-                    <span id="status-dot" class="status-dot status-disconnected"></span>
-                    <span id="status-text">Disconnected</span>
-                </span>
-                <span id="session-info">No Active Session</span>
-            </div>
+        <section id="upload-section" class="tab-content">
+            <div class="glass-panel">
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label for="http-url">API URL</label>
+                        <input type="text" id="http-url" value="http://localhost:8080/v1/audio/transcriptions">
+                    </div>
+                    <div class="form-group">
+                        <label for="api-key-upload">API Key (if required)</label>
+                        <input type="password" id="api-key-upload" class="api-key-input" placeholder="Enter API Key">
+                    </div>
+                    <div class="form-group">
+                        <label for="model-select-upload">ASR Model</label>
+                        <select id="model-select-upload" class="model-select">
+                            <option value="sherpa-onnx-whisper-small" selected>Whisper Small (Offline)</option>
+                            <option value="sherpa-onnx-streaming-zipformer2-id">Zipformer2 Indonesian</option>
+                            <option value="sherpa-onnx-streaming-zipformer-en-2023-06-26">Zipformer English (2023-06-26)
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="language-select-upload">Language</label>
+                        <select id="language-select-upload" class="language-select">
+                            <option value="en" selected>English (en)</option>
+                            <option value="id">Indonesian (id)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="format-select">Response Format</label>
+                        <select id="format-select">
+                            <option value="json" selected>JSON</option>
+                            <option value="verbose_json">Verbose JSON (Timestamps)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="temperature">Temperature</label>
+                        <input type="number" id="temperature" value="0.0" min="0" max="1" step="0.1">
+                    </div>
+                </div>
 
-            <div id="transcription-log" class="transcription-log">
-                <div class="log-item status">
-                    <span class="timestamp">System</span>
-                    Ready to connect.
+                <div class="upload-area" id="drop-zone">
+                    <input type="file" id="file-input" hidden accept="audio/*">
+                    <div class="upload-icon">📁</div>
+                    <p id="file-name">Drag & drop audio file or click to browse</p>
+                    <p class="text-secondary">Supports MP3, WAV, M4A, etc. (Max 15MB)</p>
+                </div>
+
+                <div class="controls">
+                    <button id="transcribe-btn" class="btn-primary">
+                        <span>📝</span>
+                        <span>Transcribe File</span>
+                    </button>
                 </div>
             </div>
 
-            <div id="current-transcription">
-                <span class="text-secondary">Waiting for speech...</span>
-            </div>
+            <section class="glass-panel result-container">
+                <div class="status-bar">
+                    <span>Result</span>
+                    <span id="upload-status">Ready</span>
+                </div>
+                <div id="result-display" class="result-display">
+                    <pre><code id="json-result" class="text-secondary"># Results will appear here after transcription</code></pre>
+                </div>
+            </section>
         </section>
     </div>
 

@@ -25,7 +25,7 @@
 body {
     font-family: 'Inter', sans-serif;
     background-color: var(--bg-color);
-    background-image: 
+    background-image:
         radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
     color: var(--text-primary);
@@ -55,6 +55,7 @@ header h1 {
     font-weight: 700;
     background: linear-gradient(135deg, #38bdf8, #10b981);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 0.5rem;
 }
@@ -191,9 +192,17 @@ button:disabled {
     margin-right: 0.5rem;
 }
 
-.status-disconnected { background-color: var(--text-secondary); }
-.status-connecting { background-color: var(--warning-color); }
-.status-connected { background-color: var(--success-color); }
+.status-disconnected {
+    background-color: var(--text-secondary);
+}
+
+.status-connecting {
+    background-color: var(--warning-color);
+}
+
+.status-connected {
+    background-color: var(--success-color);
+}
 
 .transcription-container {
     height: 500px;
@@ -259,8 +268,15 @@ button:disabled {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Scrollbar styling */
@@ -410,6 +426,7 @@ button:disabled {
         opacity: 0;
         transform: translateX(100%);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -421,6 +438,7 @@ button:disabled {
         opacity: 1;
         transform: translateX(0);
     }
+
     to {
         opacity: 0;
         transform: translateX(100%);
@@ -454,4 +472,104 @@ select:focus {
 select option {
     background: var(--bg-color);
     color: var(--text-primary);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.25rem;
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    min-width: 0;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    background: var(--accent-color);
+    color: #0f172a;
+}
+
+.tab-content {
+    display: none;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.tab-content.active {
+    display: flex;
+}
+
+/* Upload Area */
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 1rem;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.upload-area:hover,
+.upload-area.drag-over {
+    border-color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.05);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Result Area */
+.result-container {
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}
+
+.result-display {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.3);
+}
+
+pre {
+    margin: 0;
+}
+
+code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.text-secondary {
+    color: var(--text-secondary);
 }

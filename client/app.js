@@ -12,9 +12,11 @@ class GribeClient {
         this.isConnected = false;
         this.isRecording = false;
 
-        // UI Elements
+        // UI Elements - Realtime
         this.wsUrlInput = document.getElementById('ws-url');
-        this.apiKeyInput = document.getElementById('api-key');
+        this.apiKeyRealtimeInput = document.getElementById('api-key-realtime');
+        this.modelSelectRealtime = document.getElementById('model-select-realtime');
+        this.languageSelectRealtime = document.getElementById('language-select-realtime');
         this.connectBtn = document.getElementById('connect-btn');
         this.disconnectBtn = document.getElementById('disconnect-btn');
         this.micBtn = document.getElementById('mic-btn');
@@ -23,11 +25,28 @@ class GribeClient {
         this.sessionInfo = document.getElementById('session-info');
         this.transcriptionLog = document.getElementById('transcription-log');
         this.currentTranscription = document.getElementById('current-transcription');
-        this.modelSelect = document.getElementById('model-select');
-        this.languageSelect = document.getElementById('language-select');
+
+        // UI Elements - Upload
+        this.httpUrlInput = document.getElementById('http-url');
+        this.apiKeyUploadInput = document.getElementById('api-key-upload');
+        this.modelSelectUpload = document.getElementById('model-select-upload');
+        this.languageSelectUpload = document.getElementById('language-select-upload');
+        this.formatSelect = document.getElementById('format-select');
+        this.temperatureInput = document.getElementById('temperature');
+        this.fileInput = document.getElementById('file-input');
+        this.dropZone = document.getElementById('drop-zone');
+        this.fileNameDisplay = document.getElementById('file-name');
+        this.transcribeBtn = document.getElementById('transcribe-btn');
+        this.jsonResult = document.getElementById('json-result');
+        this.uploadStatus = document.getElementById('upload-status');
+
+        // General UI
         this.toastContainer = document.getElementById('toast-container');
+        this.selectedFile = null;
 
         this.setupEventListeners();
+        this.setupTabs();
+        this.setupFileUpload();
     }
 
     // Toast notification system
@@ -77,8 +96,141 @@ class GribeClient {
         this.disconnectBtn.onclick = () => this.disconnect();
         this.micBtn.onclick = () => this.toggleMicrophone();
 
-        this.modelSelect.onchange = () => this.updateSession();
-        this.languageSelect.onchange = () => this.updateSession();
+        this.modelSelectRealtime.onchange = () => this.updateSession();
+        this.languageSelectRealtime.onchange = () => this.updateSession();
+
+        this.transcribeBtn.onclick = () => this.transcribeFile();
+    }
+
+    setupTabs() {
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.getAttribute('data-tab');
+
+                // Update buttons
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Update content
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                    if (content.id === `${tabId}-section`) {
+                        content.classList.add('active');
+                    }
+                });
+
+                this.log(`Switched to ${tabId} tab`, 'info');
+            });
+        });
+    }
+
+    setupFileUpload() {
+        this.dropZone.onclick = () => this.fileInput.click();
+
+        this.fileInput.onchange = (e) => {
+            if (e.target.files.length > 0) {
+                this.handleFileSelect(e.target.files[0]);
+            }
+        };
+
+        this.dropZone.ondragover = (e) => {
+            e.preventDefault();
+            this.dropZone.classList.add('drag-over');
+        };
+
+        this.dropZone.ondragleave = () => {
+            this.dropZone.classList.remove('drag-over');
+        };
+
+        this.dropZone.ondrop = (e) => {
+            e.preventDefault();
+            this.dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                this.handleFileSelect(e.dataTransfer.files[0]);
+            }
+        };
+    }
+
+    handleFileSelect(file) {
+        this.selectedFile = file;
+        this.fileNameDisplay.textContent = file.name;
+        this.log(`Selected file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
+    }
+
+    async transcribeFile() {
+        if (!this.selectedFile) {
+            this.showToast('Please select an audio file first.', 'warning', 'No File Selected');
+            return;
+        }
+
+        const url = this.httpUrlInput.value;
+        const apiKey = this.apiKeyUploadInput.value;
+        const model = this.modelSelectUpload.value;
+        const language = this.languageSelectUpload.value;
+        const format = this.formatSelect.value;
+        const temperature = this.temperatureInput.value;
+
+        this.setUploadLoading(true);
+        this.log(`Starting transcription for ${this.selectedFile.name}...`, 'info');
+
+        const formData = new FormData();
+        formData.append('file', this.selectedFile);
+        formData.append('model', model);
+        formData.append('language', language);
+        formData.append('response_format', format);
+        formData.append('temperature', temperature);
+
+        const headers = {};
+        if (apiKey) {
+            headers['Authorization'] = `Bearer ${apiKey}`;
+        }
+
+        try {
+            const start = Date.now();
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: headers
+            });
+
+            const duration = ((Date.now() - start) / 1000).toFixed(2);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: { message: 'HTTP Error ' + response.status } }));
+                throw new Error(errorData.error?.message || 'Upload failed');
+            }
+
+            const result = await response.json();
+            this.displayResult(result);
+            this.log(`Transcription completed in ${duration}s`, 'success');
+            this.showToast('Transcription completed successfully', 'success', 'Done');
+
+        } catch (error) {
+            this.log(`Transcription failed: ${error.message}`, 'error');
+            this.showToast(error.message, 'error', 'Transcription Error');
+            this.uploadStatus.textContent = 'Error';
+        } finally {
+            this.setUploadLoading(false);
+        }
+    }
+
+    setUploadLoading(loading) {
+        this.transcribeBtn.disabled = loading;
+        this.fileInput.disabled = loading;
+        this.uploadStatus.textContent = loading ? 'Transcribing...' : 'Ready';
+
+        if (loading) {
+            this.jsonResult.textContent = 'Processing audio... please wait.';
+            this.jsonResult.classList.add('text-secondary');
+        }
+    }
+
+    displayResult(result) {
+        this.jsonResult.classList.remove('text-secondary');
+        this.jsonResult.textContent = JSON.stringify(result, null, 2);
     }
 
     log(message, type = 'status') {
@@ -128,7 +280,7 @@ class GribeClient {
 
     async connect() {
         const url = this.wsUrlInput.value;
-        const apiKey = this.apiKeyInput.value;
+        const apiKey = this.apiKeyRealtimeInput.value;
 
         this.updateStatus('connecting');
         this.log(`Connecting to ${url}...`);
@@ -177,8 +329,8 @@ class GribeClient {
     updateSession() {
         if (!this.isConnected) return;
 
-        const model = this.modelSelect.value;
-        const language = this.languageSelect.value;
+        const model = this.modelSelectRealtime.value;
+        const language = this.languageSelectRealtime.value;
 
         this.log(`Updating session: model=${model}, language=${language}`, 'status');
 
@@ -201,8 +353,8 @@ class GribeClient {
     }
 
     setModelLoading(loading) {
-        this.modelSelect.disabled = loading;
-        this.languageSelect.disabled = loading;
+        this.modelSelectRealtime.disabled = loading;
+        this.languageSelectRealtime.disabled = loading;
         this.micBtn.disabled = loading || !this.isConnected;
 
         if (loading) {
