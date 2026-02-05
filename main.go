@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aira-id/griber/internal/config"
+	httpdelivery "github.com/aira-id/griber/internal/delivery/http"
 	"github.com/aira-id/griber/internal/delivery/websocket"
 	"github.com/aira-id/griber/internal/usecase/session"
 )
@@ -39,11 +40,13 @@ func main() {
 	// Initialize Usecase with configuration
 	sessionUsecase := session.NewSessionUsecaseWithConfig(cfg)
 
-	// Initialize Delivery Handler
+	// Initialize Delivery Handlers
 	wsHandler := websocket.NewHandler(sessionUsecase, cfg)
+	transcriptionHandler := httpdelivery.NewTranscriptionHandler(cfg, sessionUsecase.GetASRRegistry())
 
 	// Set up routes
 	http.Handle("/v1/realtime", wsHandler)
+	http.Handle("/v1/audio/transcriptions", transcriptionHandler)
 
 	// Health check endpoint
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -83,5 +86,6 @@ func main() {
 	}
 
 	wsHandler.Close()
+	transcriptionHandler.Close()
 	log.Println("Server stopped")
 }
