@@ -53,14 +53,23 @@ type ASRConfig struct {
 	Models       map[string]ModelConfig `yaml:"models"`        // Model configurations
 }
 
+// RecognizerType represents the type of recognizer (online/offline)
+type RecognizerType string
+
+const (
+	RecognizerOnline  RecognizerType = "online"  // Streaming/realtime recognition
+	RecognizerOffline RecognizerType = "offline" // Batch/non-streaming recognition
+)
+
 // ModelConfig holds configuration for a specific ASR model
 type ModelConfig struct {
-	Provider  string   `yaml:"provider"`  // Provider type (e.g., "sherpa-onnx")
-	Encoder   string   `yaml:"encoder"`   // Path to encoder model file
-	Decoder   string   `yaml:"decoder"`   // Path to decoder model file
-	Joiner    string   `yaml:"joiner"`    // Path to joiner model file
-	Tokens    string   `yaml:"tokens"`    // Path to tokens file
-	Languages []string `yaml:"languages"` // Supported languages
+	Provider   string         `yaml:"provider"`   // Provider type (e.g., "sherpa-onnx")
+	Recognizer RecognizerType `yaml:"recognizer"` // Recognizer type: "online" (streaming) or "offline" (batch)
+	Encoder    string         `yaml:"encoder"`    // Path to encoder model file
+	Decoder    string         `yaml:"decoder"`    // Path to decoder model file
+	Joiner     string         `yaml:"joiner"`     // Path to joiner model file
+	Tokens     string         `yaml:"tokens"`     // Path to tokens file
+	Languages  []string       `yaml:"languages"`  // Supported languages
 }
 
 // YAMLConfig holds configuration loaded from YAML file
