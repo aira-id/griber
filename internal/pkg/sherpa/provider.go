@@ -353,6 +353,12 @@ func (p *Provider) transcribeOffline(ctx context.Context, audio []byte, config *
 	return resultChan, nil
 }
 
+// Pre-allocated silence buffers to avoid repeated allocations
+var (
+	leftPaddingSilence  = make([]float32, 4800) // 0.3 seconds at 16kHz
+	rightPaddingSilence = make([]float32, 9600) // 0.6 seconds at 16kHz
+)
+
 // transcribeOnline processes audio using the online (streaming) recognizer
 func (p *Provider) transcribeOnline(ctx context.Context, audio []byte, config *domain.TranscriptionConfig) (<-chan domain.TranscriptionChunk, error) {
 	resultChan := make(chan domain.TranscriptionChunk, 10)
@@ -360,45 +366,61 @@ func (p *Provider) transcribeOnline(ctx context.Context, audio []byte, config *d
 	go func() {
 		defer close(resultChan)
 
+		// Only lock during stream creation - recognizer access
 		p.mu.Lock()
-		defer p.mu.Unlock()
-
+		if p.onlineRecognizer == nil {
+			p.mu.Unlock()
+			log.Printf("Error: onlineRecognizer is nil")
+			return
+		}
 		stream := sherpa.NewOnlineStream(p.onlineRecognizer)
+		p.mu.Unlock()
+
 		if stream == nil {
 			log.Printf("Error: failed to create OnlineStream")
 			return
 		}
 		defer sherpa.DeleteOnlineStream(stream)
 
-		// Convert bytes to float32 samples
+		// Convert bytes to float32 samples (outside lock)
 		samples := bytesToFloat32(audio)
 
-		// Add left padding (0.3 seconds of silence)
-		leftPadding := make([]float32, 4800) // 16000 * 0.3
-		stream.AcceptWaveform(16000, leftPadding)
+		// Add left padding (0.3 seconds of silence) - use pre-allocated buffer
+		stream.AcceptWaveform(16000, leftPaddingSilence)
 
 		// Process the audio
 		stream.AcceptWaveform(16000, samples)
 
-		// Add right padding (0.6 seconds of silence)
-		rightPadding := make([]float32, 9600) // 16000 * 0.6
-		stream.AcceptWaveform(16000, rightPadding)
+		// Add right padding (0.6 seconds of silence) - use pre-allocated buffer
+		stream.AcceptWaveform(16000, rightPaddingSilence)
 
 		// Input finished
 		stream.InputFinished()
 
-		// Decode
-		for p.onlineRecognizer.IsReady(stream) {
+		// Decode loop - only lock during recognizer operations
+		for {
 			select {
 			case <-ctx.Done():
 				return
 			default:
+			}
+
+			p.mu.Lock()
+			isReady := p.onlineRecognizer.IsReady(stream)
+			if isReady {
 				p.onlineRecognizer.Decode(stream)
+			}
+			p.mu.Unlock()
+
+			if !isReady {
+				break
 			}
 		}
 
-		// Get final result
+		// Get final result - lock only during GetResult
+		p.mu.Lock()
 		result := p.onlineRecognizer.GetResult(stream)
+		p.mu.Unlock()
 
 		// Send final result
 		if result != nil && result.Text != "" {
@@ -441,7 +463,13 @@ func (p *Provider) TranscribeStream(ctx context.Context, config *domain.Transcri
 	go func() {
 		defer close(resultOut)
 
+		// Only lock during stream creation
 		p.mu.Lock()
+		if p.onlineRecognizer == nil {
+			p.mu.Unlock()
+			log.Printf("Error: onlineRecognizer is nil")
+			return
+		}
 		stream := sherpa.NewOnlineStream(p.onlineRecognizer)
 		p.mu.Unlock()
 
@@ -463,11 +491,21 @@ func (p *Provider) TranscribeStream(ctx context.Context, config *domain.Transcri
 					// Channel closed, finalize
 					stream.InputFinished()
 
-					p.mu.Lock()
-					// Finalize decoding
-					for p.onlineRecognizer.IsReady(stream) {
-						p.onlineRecognizer.Decode(stream)
+					// Finalize decoding with fine-grained locking
+					for {
+						p.mu.Lock()
+						isReady := p.onlineRecognizer.IsReady(stream)
+						if isReady {
+							p.onlineRecognizer.Decode(stream)
+						}
+						p.mu.Unlock()
+						if !isReady {
+							break
+						}
 					}
+
+					// Get final result
+					p.mu.Lock()
 					result := p.onlineRecognizer.GetResult(stream)
 					p.mu.Unlock()
 
@@ -494,19 +532,27 @@ func (p *Provider) TranscribeStream(ctx context.Context, config *domain.Transcri
 					return
 				}
 
-				// Convert bytes to float32 samples
+				// Convert bytes to float32 samples (outside lock)
 				samples := bytesToFloat32(audio)
 
-				p.mu.Lock()
-				// Accept waveform
+				// Accept waveform (stream is local, no lock needed)
 				stream.AcceptWaveform(16000, samples)
 
-				// Decode if ready
-				for p.onlineRecognizer.IsReady(stream) {
-					p.onlineRecognizer.Decode(stream)
+				// Decode if ready - fine-grained locking per operation
+				for {
+					p.mu.Lock()
+					isReady := p.onlineRecognizer.IsReady(stream)
+					if isReady {
+						p.onlineRecognizer.Decode(stream)
+					}
+					p.mu.Unlock()
+					if !isReady {
+						break
+					}
 				}
 
 				// Get current result
+				p.mu.Lock()
 				result := p.onlineRecognizer.GetResult(stream)
 				p.mu.Unlock()
 
