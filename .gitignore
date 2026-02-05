@@ -1,5 +1,5 @@
-.claude
 griber
-models/
-pkg/whisper
 config.yaml
+models
+.claude
+internal/pkg/whisper
