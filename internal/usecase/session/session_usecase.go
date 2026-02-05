@@ -54,10 +54,20 @@ func NewSessionUsecaseWithConfig(cfg *config.Config) *SessionUsecase {
 	// Create registry for lazy model loading (no models loaded yet)
 	registry := asr.NewASRModelRegistry(&cfg.ASR)
 
-	log.Printf("[INFO] ASR Model Registry initialized with %d available models (lazy loading enabled)",
+	log.Printf("[INFO] ASR Model Registry initialized with %d available models",
 		len(cfg.ASR.Models))
 	for modelName := range cfg.ASR.Models {
 		log.Printf("[INFO]   - %s", modelName)
+	}
+
+	// Preload the default model to avoid cold-start latency
+	if cfg.ASR.DefaultModel != "" {
+		log.Printf("[INFO] Preloading default ASR model: %s", cfg.ASR.DefaultModel)
+		go func() {
+			if err := registry.PreloadDefaultModel(); err != nil {
+				log.Printf("[WARN] Failed to preload default model '%s': %v", cfg.ASR.DefaultModel, err)
+			}
+		}()
 	}
 
 	return &SessionUsecase{
@@ -78,6 +88,11 @@ func NewSessionUsecaseWithASR(asr domain.ASRProvider) *SessionUsecase {
 		maxAudioBufferSize:   15 * 1024 * 1024, // 15MB default
 		transcriptionTimeout: 30 * time.Second,
 	}
+}
+
+// GetASRRegistry returns the ASR model registry for external use
+func (u *SessionUsecase) GetASRRegistry() *asr.ASRModelRegistry {
+	return u.asrRegistry
 }
 
 // getOrCreateVAD gets or creates a VAD provider for a session
@@ -349,6 +364,22 @@ func (u *SessionUsecase) reconfigureASRProvider(conn Conn, state *domain.Session
 		u.sendError(conn, eventID, "invalid_request_error", "missing_field",
 			"transcription.language is required", "audio.input.transcription.language")
 		return fmt.Errorf("language is required")
+	}
+
+	// Check intent constraints before loading model
+	if state.Config.Type == "realtime" {
+		isOnline, err := u.asrRegistry.IsModelOnline(modelName)
+		if err != nil {
+			u.sendError(conn, eventID, "invalid_request_error", "invalid_model",
+				err.Error(), "audio.input.transcription.model")
+			return err
+		}
+		if !isOnline {
+			u.sendError(conn, eventID, "invalid_request_error", "invalid_model_for_intent",
+				fmt.Sprintf("Model '%s' is an offline model and cannot be used for realtime streaming", modelName),
+				"audio.input.transcription.model")
+			return fmt.Errorf("model '%s' is not an online model", modelName)
+		}
 	}
 
 	// Get model from registry (lazy loading with singleton pattern)

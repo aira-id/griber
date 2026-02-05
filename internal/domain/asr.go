@@ -9,6 +9,15 @@ type TranscriptionChunk struct {
 	StartMs  int       `json:"start_ms,omitempty"`
 	EndMs    int       `json:"end_ms,omitempty"`
 	Logprobs []Logprob `json:"logprobs,omitempty"`
+	Words    []Word    `json:"words,omitempty"`
+}
+
+// Word represents a transcribed word with timing
+type Word struct {
+	Word    string  `json:"word"`
+	StartMs int     `json:"start_ms"`
+	EndMs   int     `json:"end_ms"`
+	Logprob float64 `json:"logprob,omitempty"`
 }
 
 // Logprob represents log probability information for transcription
@@ -44,6 +53,12 @@ type ASRProvider interface {
 
 	// GetSupportedLanguages returns list of supported language codes
 	GetSupportedLanguages() []string
+
+	// IsOnline returns true if the provider supports real-time streaming
+	IsOnline() bool
+
+	// IsOffline returns true if the provider supports batch transcription
+	IsOffline() bool
 
 	// Close releases any resources held by the provider
 	Close() error

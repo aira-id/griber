@@ -21,9 +21,11 @@ type AudioInput struct {
 
 // TranscriptionConfig represents transcription settings for STT
 type TranscriptionConfig struct {
-	Model    string `json:"model"`              // "gpt-4o-transcribe", "gpt-4o-mini-transcribe"
-	Language string `json:"language,omitempty"` // ISO-639-1 code like "en"
-	Prompt   string `json:"prompt,omitempty"`   // Optional prompt to guide transcription
+	Model                  string   `json:"model"`                             // "gpt-4o-transcribe", "gpt-4o-mini-transcribe"
+	Language               string   `json:"language,omitempty"`                // ISO-639-1 code like "en"
+	Prompt                 string   `json:"prompt,omitempty"`                  // Optional prompt to guide transcription
+	Temperature            float64  `json:"temperature,omitempty"`             // 0.0 to 1.0 (default 0)
+	TimestampGranularities []string `json:"timestamp_granularities,omitempty"` // ["word", "segment"]
 }
 
 // NoiseReduction represents noise reduction settings

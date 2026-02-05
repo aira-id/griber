@@ -163,6 +163,16 @@ func (m *Provider) GetSupportedLanguages() []string {
 	return []string{"en"}
 }
 
+// IsOnline implements ASRProvider.IsOnline
+func (m *Provider) IsOnline() bool {
+	return true
+}
+
+// IsOffline implements ASRProvider.IsOffline
+func (m *Provider) IsOffline() bool {
+	return true
+}
+
 // Close implements ASRProvider.Close
 func (m *Provider) Close() error {
 	return nil

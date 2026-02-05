@@ -120,6 +120,29 @@ func (r *ASRModelRegistry) GetModel(modelName, language string) (domain.ASRProvi
 	return provider, nil
 }
 
+// PreloadModel triggers loading of a specific model
+func (r *ASRModelRegistry) PreloadModel(modelName string) error {
+	// Get first supported language for this model
+	langs, err := r.GetModelLanguages(modelName)
+	if err != nil {
+		return err
+	}
+	if len(langs) == 0 {
+		return fmt.Errorf("model '%s' has no supported languages", modelName)
+	}
+
+	_, err = r.GetModel(modelName, langs[0])
+	return err
+}
+
+// PreloadDefaultModel preloads the default model specified in global config
+func (r *ASRModelRegistry) PreloadDefaultModel() error {
+	if r.globalConfig == nil || r.globalConfig.DefaultModel == "" {
+		return nil
+	}
+	return r.PreloadModel(r.globalConfig.DefaultModel)
+}
+
 // GetAvailableModels returns a list of available model names
 func (r *ASRModelRegistry) GetAvailableModels() []string {
 	if r.globalConfig == nil {
@@ -145,6 +168,34 @@ func (r *ASRModelRegistry) GetModelLanguages(modelName string) ([]string, error)
 	}
 
 	return modelConfig.Languages, nil
+}
+
+// IsModelOnline returns true if the model is configured for online (streaming) recognition
+func (r *ASRModelRegistry) IsModelOnline(modelName string) (bool, error) {
+	if r.globalConfig == nil {
+		return false, fmt.Errorf("ASR configuration not available")
+	}
+
+	modelConfig, exists := r.globalConfig.Models[modelName]
+	if !exists {
+		return false, fmt.Errorf("model '%s' not found", modelName)
+	}
+
+	return modelConfig.Recognizer == config.RecognizerOnline || modelConfig.Recognizer == "", nil
+}
+
+// IsModelOffline returns true if the model is configured for offline (batch) recognition
+func (r *ASRModelRegistry) IsModelOffline(modelName string) (bool, error) {
+	if r.globalConfig == nil {
+		return false, fmt.Errorf("ASR configuration not available")
+	}
+
+	modelConfig, exists := r.globalConfig.Models[modelName]
+	if !exists {
+		return false, fmt.Errorf("model '%s' not found", modelName)
+	}
+
+	return modelConfig.Recognizer == config.RecognizerOffline, nil
 }
 
 // IsModelLoaded checks if a model is already loaded
@@ -189,11 +240,18 @@ func (r *ASRModelRegistry) Close() error {
 // Provider creator functions
 
 func createSherpaProvider(globalConfig *config.ASRConfig, modelName string, modelConfig *config.ModelConfig) (domain.ASRProvider, error) {
+	// Map config recognizer type to sherpa recognizer type
+	recognizerType := sherpa.RecognizerOnline // Default to online
+	if modelConfig.Recognizer == config.RecognizerOffline {
+		recognizerType = sherpa.RecognizerOffline
+	}
+
 	sherpaConfig := &sherpa.Config{
 		Provider:   globalConfig.Provider,
 		NumThreads: globalConfig.NumThreads,
 		ModelsDir:  globalConfig.ModelsDir,
 		ModelName:  modelName,
+		Recognizer: recognizerType,
 		Encoder:    modelConfig.Encoder,
 		Decoder:    modelConfig.Decoder,
 		Joiner:     modelConfig.Joiner,
